@@ -68,18 +68,18 @@ export const mockRestaurants: Restaurant[] = [
 export const mockMenus: Menu[] = [
   {
     id: 'menu1',
-    date: new Date().toISOString().split('T')[0],
+    date: '2025-01-15',
     plats: {
-      ndekki: ['Attaya + Pain', 'Café + Beignet', 'Thé + Croissant'],
+      ndekki: ['Pain + Lait + Stick de café + Beurre/Mayonnaise + Fromage/Chocolat'],
       repas: ['Thiéboudienne', 'Yassa Poulet', 'Mafé Bœuf']
     },
     restaurantId: 'resto1'
   },
   {
     id: 'menu2',
-    date: new Date().toISOString().split('T')[0],
+    date: '2025-01-15',
     plats: {
-      ndekki: ['Bissap + Beignet', 'Gingembre + Pain grillé'],
+      ndekki: ['Pain + Lait + Stick de café + Beurre/Mayonnaise + Fromage/Chocolat'],
       repas: ['Soupou Kanja', 'Domoda', 'Caldou Poisson']
     },
     restaurantId: 'resto2'
@@ -92,7 +92,7 @@ export const mockMenuPropositions: MenuProposition[] = [
     etudiantId: 'etudiant1',
     etudiantNom: 'Aminata Diop',
     proposition: 'Ajouter du Ngalax comme dessert',
-    date: new Date().toISOString(),
+    date: '2025-01-15T10:30:00.000Z',
     restaurantId: 'resto1'
   },
   {
@@ -100,7 +100,7 @@ export const mockMenuPropositions: MenuProposition[] = [
     etudiantId: 'etudiant2',
     etudiantNom: 'Moussa Fall',
     proposition: 'Proposer du Thiéré au poisson le vendredi',
-    date: new Date().toISOString(),
+    date: '2025-01-14T14:45:00.000Z',
     restaurantId: 'resto1'
   }
 ];
@@ -123,9 +123,10 @@ export let mockTicketShares: TicketShare[] = [
   {
     id: 'share1',
     destinataire: 'Moussa Fall',
+    numeroEtudiant: 'ESP2023002',
     nombreNdekki: 2,
     nombreRepas: 1,
-    date: new Date().toISOString()
+    date: '2025-01-15T12:30:00.000Z'
   }
 ];
 

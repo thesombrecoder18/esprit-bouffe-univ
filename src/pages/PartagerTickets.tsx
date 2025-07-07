@@ -7,34 +7,24 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { toast } from '@/hooks/use-toast';
-import { mockUsers, addTicketShare, updateUserTickets } from '@/data/mockData';
-import { Share2, Plus, Minus, UtensilsCrossed, Search, UserCheck } from 'lucide-react';
+import { mockUsers, addTicketShare, updateUserTickets, mockTicketShares } from '@/data/mockData';
+import { Share2, Plus, Minus, UtensilsCrossed, History } from 'lucide-react';
 
 const PartagerTickets = () => {
   const { user, updateUser } = useAuth();
   const [destinataire, setDestinataire] = useState('');
+  const [numeroEtudiant, setNumeroEtudiant] = useState('');
   const [nombreNdekki, setNombreNdekki] = useState(0);
   const [nombreRepas, setNombreRepas] = useState(0);
-  const [rechercheDestinataire, setRechercheDestinataire] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
-  // Filtrer les étudiants disponibles (excluant l'utilisateur actuel)
-  const etudiantsDisponibles = mockUsers
-    .filter(u => u.role === 'etudiant' && u.id !== user?.id)
-    .filter(u => 
-      rechercheDestinataire === '' || 
-      `${u.prenom} ${u.nom}`.toLowerCase().includes(rechercheDestinataire.toLowerCase()) ||
-      u.email.toLowerCase().includes(rechercheDestinataire.toLowerCase())
-    );
-
   const totalTicketsAPartager = nombreNdekki + nombreRepas;
-  const ticketsDisponibles = (user?.tickets?.ndekki || 0) + (user?.tickets?.repas || 0);
 
   const handlePartage = async () => {
-    if (!destinataire) {
+    if (!destinataire.trim() || !numeroEtudiant.trim()) {
       toast({
         title: "Erreur",
-        description: "Veuillez sélectionner un destinataire",
+        description: "Veuillez remplir le nom et le numéro de carte étudiant",
         variant: "destructive"
       });
       return;
@@ -73,27 +63,16 @@ const PartagerTickets = () => {
       // Simulation du processus de partage
       await new Promise(resolve => setTimeout(resolve, 1500));
 
-      // Trouver le destinataire
-      const destinataireUser = mockUsers.find(u => u.id === destinataire);
-      if (!destinataireUser) {
-        throw new Error("Destinataire non trouvé");
-      }
-
       // Mettre à jour les tickets de l'utilisateur actuel
       const nouveauxTicketsUtilisateur = {
         ndekki: (user?.tickets?.ndekki || 0) - nombreNdekki,
         repas: (user?.tickets?.repas || 0) - nombreRepas
       };
 
-      // Mettre à jour les tickets du destinataire
-      const nouveauxTicketsDestinataire = {
-        ndekki: (destinataireUser.tickets?.ndekki || 0) + nombreNdekki,
-        repas: (destinataireUser.tickets?.repas || 0) + nombreRepas
-      };
-
       // Enregistrer le partage
       addTicketShare({
-        destinataire: `${destinataireUser.prenom} ${destinataireUser.nom}`,
+        destinataire: destinataire.trim(),
+        numeroEtudiant: numeroEtudiant.trim(),
         nombreNdekki,
         nombreRepas,
         date: new Date().toISOString()
@@ -101,19 +80,17 @@ const PartagerTickets = () => {
 
       // Mettre à jour les données
       updateUser({ tickets: nouveauxTicketsUtilisateur });
-      updateUserTickets(user?.id || '', nouveauxTicketsUtilisateur);
-      updateUserTickets(destinataire, nouveauxTicketsDestinataire);
 
       toast({
         title: "Partage réussi !",
-        description: `Vous avez partagé ${nombreNdekki} ticket(s) Ndekki et ${nombreRepas} ticket(s) Repas avec ${destinataireUser.prenom} ${destinataireUser.nom}`,
+        description: `Vous avez partagé ${nombreNdekki} ticket(s) Ndekki et ${nombreRepas} ticket(s) Repas avec ${destinataire}`,
       });
 
       // Réinitialiser le formulaire
       setDestinataire('');
+      setNumeroEtudiant('');
       setNombreNdekki(0);
       setNombreRepas(0);
-      setRechercheDestinataire('');
 
     } catch (error) {
       toast({
@@ -159,167 +136,139 @@ const PartagerTickets = () => {
         </CardContent>
       </Card>
 
-      {/* Sélection du destinataire */}
+      {/* Informations du destinataire */}
       <Card>
         <CardHeader>
-          <CardTitle>Choisir le destinataire</CardTitle>
+          <CardTitle>Informations du destinataire</CardTitle>
           <CardDescription>
-            Sélectionnez l'étudiant avec qui partager vos tickets
+            Entrez les informations de l'étudiant qui recevra les tickets
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="recherche">Rechercher un étudiant</Label>
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="recherche"
-                placeholder="Nom, prénom ou email..."
-                value={rechercheDestinataire}
-                onChange={(e) => setRechercheDestinataire(e.target.value)}
-                className="pl-10"
-              />
-            </div>
+          <div>
+            <Label htmlFor="numeroEtudiant">Numéro de carte étudiant</Label>
+            <Input
+              id="numeroEtudiant"
+              placeholder="Ex: ESP2023045"
+              value={numeroEtudiant}
+              onChange={(e) => setNumeroEtudiant(e.target.value)}
+              className="mt-1"
+            />
           </div>
-
-          {rechercheDestinataire && (
-            <div className="max-h-60 overflow-y-auto space-y-2">
-              {etudiantsDisponibles.length > 0 ? (
-                etudiantsDisponibles.map((etudiant) => (
-                  <div
-                    key={etudiant.id}
-                    className={`p-3 rounded-lg border cursor-pointer transition-colors ${
-                      destinataire === etudiant.id
-                        ? 'border-primary bg-primary/5'
-                        : 'border-muted hover:border-muted-foreground/50'
-                    }`}
-                    onClick={() => setDestinataire(etudiant.id)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium">{etudiant.prenom} {etudiant.nom}</p>
-                        <p className="text-sm text-muted-foreground">{etudiant.email}</p>
-                        <p className="text-xs text-muted-foreground">{etudiant.numeroEtudiant}</p>
-                      </div>
-                      {destinataire === etudiant.id && (
-                        <UserCheck className="h-5 w-5 text-primary" />
-                      )}
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-center text-muted-foreground py-4">
-                  Aucun étudiant trouvé
-                </p>
-              )}
-            </div>
-          )}
+          <div>
+            <Label htmlFor="destinataire">Nom complet du destinataire</Label>
+            <Input
+              id="destinataire"
+              placeholder="Prénom et nom de l'étudiant"
+              value={destinataire}
+              onChange={(e) => setDestinataire(e.target.value)}
+              className="mt-1"
+            />
+          </div>
         </CardContent>
       </Card>
 
       {/* Sélection des tickets à partager */}
-      {destinataire && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Tickets à partager</CardTitle>
-            <CardDescription>
-              Choisissez le nombre de tickets à partager
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-6">
-            {/* Tickets Ndekki */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium">Tickets Ndekki</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Disponibles: {user?.tickets?.ndekki || 0}
-                  </p>
-                </div>
-                <Badge variant="outline" className="text-primary border-primary/50">
-                  50F CFA
-                </Badge>
+      <Card>
+        <CardHeader>
+          <CardTitle>Tickets à partager</CardTitle>
+          <CardDescription>
+            Choisissez le nombre de tickets à partager
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          {/* Tickets Ndekki */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium">Tickets Ndekki</h3>
+                <p className="text-sm text-muted-foreground">
+                  Disponibles: {user?.tickets?.ndekki || 0}
+                </p>
               </div>
-              <div className="flex items-center gap-4">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setNombreNdekki(Math.max(0, nombreNdekki - 1))}
-                  disabled={nombreNdekki <= 0}
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <div className="w-20 text-center">
-                  <Input
-                    type="number"
-                    value={nombreNdekki}
-                    onChange={(e) => setNombreNdekki(Math.max(0, Math.min(user?.tickets?.ndekki || 0, parseInt(e.target.value) || 0)))}
-                    className="text-center"
-                    min="0"
-                    max={user?.tickets?.ndekki || 0}
-                  />
-                </div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setNombreNdekki(Math.min(user?.tickets?.ndekki || 0, nombreNdekki + 1))}
-                  disabled={nombreNdekki >= (user?.tickets?.ndekki || 0)}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
+              <Badge variant="outline" className="text-primary border-primary/50">
+                50F CFA
+              </Badge>
             </div>
-
-            <Separator />
-
-            {/* Tickets Repas */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="font-medium">Tickets Repas</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Disponibles: {user?.tickets?.repas || 0}
-                  </p>
-                </div>
-                <Badge variant="outline" className="text-accent border-accent/50">
-                  100F CFA
-                </Badge>
+            <div className="flex items-center gap-4">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setNombreNdekki(Math.max(0, nombreNdekki - 1))}
+                disabled={nombreNdekki <= 0}
+              >
+                <Minus className="h-4 w-4" />
+              </Button>
+              <div className="w-20 text-center">
+                <Input
+                  type="number"
+                  value={nombreNdekki}
+                  onChange={(e) => setNombreNdekki(Math.max(0, Math.min(user?.tickets?.ndekki || 0, parseInt(e.target.value) || 0)))}
+                  className="text-center"
+                  min="0"
+                  max={user?.tickets?.ndekki || 0}
+                />
               </div>
-              <div className="flex items-center gap-4">
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setNombreRepas(Math.max(0, nombreRepas - 1))}
-                  disabled={nombreRepas <= 0}
-                >
-                  <Minus className="h-4 w-4" />
-                </Button>
-                <div className="w-20 text-center">
-                  <Input
-                    type="number"
-                    value={nombreRepas}
-                    onChange={(e) => setNombreRepas(Math.max(0, Math.min(user?.tickets?.repas || 0, parseInt(e.target.value) || 0)))}
-                    className="text-center"
-                    min="0"
-                    max={user?.tickets?.repas || 0}
-                  />
-                </div>
-                <Button
-                  variant="outline"
-                  size="icon"
-                  onClick={() => setNombreRepas(Math.min(user?.tickets?.repas || 0, nombreRepas + 1))}
-                  disabled={nombreRepas >= (user?.tickets?.repas || 0)}
-                >
-                  <Plus className="h-4 w-4" />
-                </Button>
-              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setNombreNdekki(Math.min(user?.tickets?.ndekki || 0, nombreNdekki + 1))}
+                disabled={nombreNdekki >= (user?.tickets?.ndekki || 0)}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+
+          <Separator />
+
+          {/* Tickets Repas */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="font-medium">Tickets Repas</h3>
+                <p className="text-sm text-muted-foreground">
+                  Disponibles: {user?.tickets?.repas || 0}
+                </p>
+              </div>
+              <Badge variant="outline" className="text-accent border-accent/50">
+                100F CFA
+              </Badge>
+            </div>
+            <div className="flex items-center gap-4">
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setNombreRepas(Math.max(0, nombreRepas - 1))}
+                disabled={nombreRepas <= 0}
+              >
+                <Minus className="h-4 w-4" />
+              </Button>
+              <div className="w-20 text-center">
+                <Input
+                  type="number"
+                  value={nombreRepas}
+                  onChange={(e) => setNombreRepas(Math.max(0, Math.min(user?.tickets?.repas || 0, parseInt(e.target.value) || 0)))}
+                  className="text-center"
+                  min="0"
+                  max={user?.tickets?.repas || 0}
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setNombreRepas(Math.min(user?.tickets?.repas || 0, nombreRepas + 1))}
+                disabled={nombreRepas >= (user?.tickets?.repas || 0)}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Confirmation du partage */}
-      {destinataire && totalTicketsAPartager > 0 && (
+      {totalTicketsAPartager > 0 && destinataire.trim() && numeroEtudiant.trim() && (
         <Card>
           <CardHeader>
             <CardTitle>Confirmer le partage</CardTitle>
@@ -331,9 +280,11 @@ const PartagerTickets = () => {
             <div className="p-4 rounded-lg bg-muted/50 space-y-2">
               <div className="flex justify-between">
                 <span>Destinataire:</span>
-                <span className="font-medium">
-                  {mockUsers.find(u => u.id === destinataire)?.prenom} {mockUsers.find(u => u.id === destinataire)?.nom}
-                </span>
+                <span className="font-medium">{destinataire}</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Numéro étudiant:</span>
+                <span className="font-medium">{numeroEtudiant}</span>
               </div>
               {nombreNdekki > 0 && (
                 <div className="flex justify-between">
@@ -375,6 +326,62 @@ const PartagerTickets = () => {
           </CardContent>
         </Card>
       )}
+
+      {/* Historique des partages */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <History className="h-5 w-5" />
+            Historique des partages
+          </CardTitle>
+          <CardDescription>
+            Vos derniers partages de tickets
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {mockTicketShares.length === 0 ? (
+            <div className="text-center py-8">
+              <Share2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">
+                Aucun partage effectué
+              </p>
+            </div>
+          ) : (
+            mockTicketShares.map((share) => (
+              <Card key={share.id} className="border-l-4 border-l-primary">
+                <CardContent className="pt-4">
+                  <div className="flex items-start justify-between mb-3">
+                    <div>
+                      <p className="font-medium">{share.destinataire}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Carte: {share.numeroEtudiant}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(share.date).toLocaleDateString('fr-FR')}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center gap-4">
+                    {share.nombreNdekki > 0 && (
+                      <Badge variant="outline" className="text-primary border-primary/50">
+                        {share.nombreNdekki} Ndekki
+                      </Badge>
+                    )}
+                    {share.nombreRepas > 0 && (
+                      <Badge variant="outline" className="text-accent border-accent/50">
+                        {share.nombreRepas} Repas
+                      </Badge>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 };

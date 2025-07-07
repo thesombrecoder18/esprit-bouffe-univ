@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { QrCode, User, UtensilsCrossed, CheckCircle, XCircle, History, Camera } from 'lucide-react';
@@ -9,6 +11,7 @@ import { QrCode, User, UtensilsCrossed, CheckCircle, XCircle, History, Camera } 
 const ScannerQR = () => {
   const { user } = useAuth();
   const [isScanning, setIsScanning] = useState(false);
+  const [numeroEtudiant, setNumeroEtudiant] = useState('');
   const [scanHistory, setScanHistory] = useState([
     {
       id: '1',
@@ -16,7 +19,7 @@ const ScannerQR = () => {
       numeroEtudiant: 'ESP2023001',
       typeTicket: 'ndekki' as const,
       nombre: 1,
-      dateHeure: '2024-01-15 12:30',
+      dateHeure: '2025-01-15 12:30',
       statut: 'valide'
     },
     {
@@ -25,7 +28,7 @@ const ScannerQR = () => {
       numeroEtudiant: 'ESP2023045',
       typeTicket: 'repas' as const,
       nombre: 1,
-      dateHeure: '2024-01-15 12:25',
+      dateHeure: '2025-01-15 12:25',
       statut: 'valide'
     },
     {
@@ -34,38 +37,40 @@ const ScannerQR = () => {
       numeroEtudiant: 'ESP2023078',
       typeTicket: 'ndekki' as const,
       nombre: 2,
-      dateHeure: '2024-01-15 12:20',
+      dateHeure: '2025-01-15 12:20',
       statut: 'invalide'
     }
   ]);
 
   // Simulation du scan
-  const simulateQRScan = () => {
+  const simulateQRScan = (numeroManuel?: string) => {
     const mockScans = [
       {
         etudiantNom: 'Cheikh Ba',
-        numeroEtudiant: 'ESP2023089',
+        numeroEtudiant: numeroManuel || 'ESP2023089',
         typeTicket: 'repas' as const,
         nombre: 1,
         statut: 'valide'
       },
       {
         etudiantNom: 'Aida Faye',
-        numeroEtudiant: 'ESP2023012',
+        numeroEtudiant: numeroManuel || 'ESP2023012',
         typeTicket: 'ndekki' as const,
         nombre: 2,
         statut: 'valide'
       },
       {
         etudiantNom: 'Oumar Diallo',
-        numeroEtudiant: 'ESP2023156',
+        numeroEtudiant: numeroManuel || 'ESP2023156',
         typeTicket: 'repas' as const,
         nombre: 1,
         statut: 'invalide'
       }
     ];
 
-    const randomScan = mockScans[Math.floor(Math.random() * mockScans.length)];
+    const randomScan = numeroManuel 
+      ? { ...mockScans[0], numeroEtudiant: numeroManuel }
+      : mockScans[Math.floor(Math.random() * mockScans.length)];
     
     const nouveauScan = {
       id: Date.now().toString(),
@@ -103,6 +108,19 @@ const ScannerQR = () => {
       simulateQRScan();
       setIsScanning(false);
     }, 2000);
+  };
+
+  const handleManualScan = () => {
+    if (!numeroEtudiant.trim()) return;
+    
+    setIsScanning(true);
+    
+    // Simulation d'une vérification manuelle
+    setTimeout(() => {
+      simulateQRScan(numeroEtudiant.trim());
+      setNumeroEtudiant('');
+      setIsScanning(false);
+    }, 1000);
   };
 
   const getTicketBadge = (type: string) => {
@@ -204,10 +222,36 @@ const ScannerQR = () => {
               ) : (
                 <>
                   <QrCode className="h-4 w-4 mr-2" />
-                  Démarrer le scan
+                  Scanner QR Code
                 </>
               )}
             </Button>
+
+            <div className="flex items-center gap-4">
+              <div className="flex-1 h-px bg-border"></div>
+              <span className="text-sm text-muted-foreground">OU</span>
+              <div className="flex-1 h-px bg-border"></div>
+            </div>
+
+            <div className="space-y-3">
+              <Label htmlFor="numeroEtudiant">Saisir le numéro de carte étudiant</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="numeroEtudiant"
+                  placeholder="Ex: ESP2023001"
+                  value={numeroEtudiant}
+                  onChange={(e) => setNumeroEtudiant(e.target.value)}
+                  className="flex-1"
+                />
+                <Button 
+                  onClick={handleManualScan}
+                  disabled={!numeroEtudiant.trim() || isScanning}
+                  variant="outline"
+                >
+                  Valider
+                </Button>
+              </div>
+            </div>
 
             {/* Statistiques rapides */}
             <div className="grid grid-cols-2 gap-4 pt-4 border-t">

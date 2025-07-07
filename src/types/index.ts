@@ -16,6 +16,7 @@ export interface UserTickets {
 export interface TicketShare {
   id: string;
   destinataire: string;
+  numeroEtudiant: string;
   nombreNdekki: number;
   nombreRepas: number;
   date: string;
