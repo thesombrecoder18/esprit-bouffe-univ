@@ -156,9 +156,30 @@ export const addMenuProposition = (proposition: Omit<MenuProposition, 'id'>) => 
   return newProposition;
 };
 
-export const updateMenu = (menuId: string, plats: Menu['plats']) => {
-  const menuIndex = mockMenus.findIndex(m => m.id === menuId);
-  if (menuIndex !== -1) {
-    mockMenus[menuIndex].plats = plats;
+export const addUser = (user: Omit<User, 'id'>) => {
+  const newUser: User = {
+    ...user,
+    id: `user_${Date.now()}`
+  };
+  mockUsers.push(newUser);
+  return newUser;
+};
+
+export const updateUser = (userId: string, updates: Partial<User>) => {
+  const userIndex = mockUsers.findIndex(u => u.id === userId);
+  if (userIndex !== -1) {
+    mockUsers[userIndex] = { ...mockUsers[userIndex], ...updates };
+    return mockUsers[userIndex];
   }
+  return null;
+};
+
+export const deleteUser = (userId: string) => {
+  const userIndex = mockUsers.findIndex(u => u.id === userId);
+  if (userIndex !== -1) {
+    const deletedUser = mockUsers[userIndex];
+    mockUsers.splice(userIndex, 1);
+    return deletedUser;
+  }
+  return null;
 };

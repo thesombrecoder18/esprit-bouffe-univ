@@ -10,7 +10,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { toast } from '@/hooks/use-toast';
 import { Users, UserPlus, Search, Filter, MoreVertical, Edit, Trash2, Mail } from 'lucide-react';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { mockUsers } from '@/data/mockData';
+import { mockUsers, addUser, updateUser as updateUserData, deleteUser } from '@/data/mockData';
+import { User } from '@/types';
 
 const GestionUtilisateurs = () => {
   const { user } = useAuth();
@@ -18,7 +19,17 @@ const GestionUtilisateurs = () => {
   const [filtreRole, setFiltreRole] = useState('tous');
   const [recherche, setRecherche] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [utilisateurSelectionne, setUtilisateurSelectionne] = useState<any>(null);
+  const [utilisateurSelectionne, setUtilisateurSelectionne] = useState<User | null>(null);
+  const [isModifying, setIsModifying] = useState(false);
+  
+  // États pour le formulaire
+  const [formData, setFormData] = useState({
+    prenom: '',
+    nom: '',
+    email: '',
+    role: '' as User['role'] | '',
+    numeroEtudiant: ''
+  });
 
   const getRoleDisplayName = (role: string) => {
     const roleNames = {
@@ -59,17 +70,122 @@ const GestionUtilisateurs = () => {
     restaurateurs: utilisateurs.filter(u => u.role === 'restaurateur').length,
   };
 
-  const handleSupprimerUtilisateur = (userId: string) => {
-    setUtilisateurs(prev => prev.filter(u => u.id !== userId));
-    toast({
-      title: "Utilisateur supprimé",
-      description: "L'utilisateur a été supprimé avec succès.",
+  const resetForm = () => {
+    setFormData({
+      prenom: '',
+      nom: '',
+      email: '',
+      role: '',
+      numeroEtudiant: ''
     });
+    setUtilisateurSelectionne(null);
+    setIsModifying(false);
   };
 
-  const handleModifierUtilisateur = (utilisateur: any) => {
+  const handleSupprimerUtilisateur = (userId: string) => {
+    const deletedUser = deleteUser(userId);
+    if (deletedUser) {
+      setUtilisateurs(mockUsers);
+      toast({
+        title: "Utilisateur supprimé",
+        description: `${deletedUser.prenom} ${deletedUser.nom} a été supprimé avec succès.`,
+      });
+    }
+  };
+
+  const handleModifierUtilisateur = (utilisateur: User) => {
     setUtilisateurSelectionne(utilisateur);
+    setFormData({
+      prenom: utilisateur.prenom,
+      nom: utilisateur.nom,
+      email: utilisateur.email,
+      role: utilisateur.role,
+      numeroEtudiant: utilisateur.numeroEtudiant || ''
+    });
+    setIsModifying(true);
     setIsDialogOpen(true);
+  };
+
+  const handleAjouterUtilisateur = () => {
+    setIsModifying(false);
+    resetForm();
+    setIsDialogOpen(true);
+  };
+
+  const handleSauvegarderUtilisateur = () => {
+    if (!formData.prenom || !formData.nom || !formData.email || !formData.role) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez remplir tous les champs obligatoires.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Validation email
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(formData.email)) {
+      toast({
+        title: "Erreur",
+        description: "Veuillez entrer une adresse email valide.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Vérifier si l'email existe déjà (sauf pour modification)
+    const emailExists = mockUsers.some(u => 
+      u.email === formData.email && 
+      (!isModifying || u.id !== utilisateurSelectionne?.id)
+    );
+    
+    if (emailExists) {
+      toast({
+        title: "Erreur",
+        description: "Cette adresse email est déjà utilisée.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    if (isModifying && utilisateurSelectionne) {
+      // Modification
+      const updatedUser = updateUserData(utilisateurSelectionne.id, {
+        prenom: formData.prenom,
+        nom: formData.nom,
+        email: formData.email,
+        role: formData.role as User['role'],
+        numeroEtudiant: formData.role === 'etudiant' ? formData.numeroEtudiant : undefined,
+        tickets: formData.role === 'etudiant' ? { ndekki: 0, repas: 0 } : undefined
+      });
+
+      if (updatedUser) {
+        setUtilisateurs([...mockUsers]);
+        toast({
+          title: "Utilisateur modifié",
+          description: `${updatedUser.prenom} ${updatedUser.nom} a été modifié avec succès.`,
+        });
+      }
+    } else {
+      // Ajout
+      const newUser = addUser({
+        prenom: formData.prenom,
+        nom: formData.nom,
+        email: formData.email,
+        role: formData.role as User['role'],
+        numeroEtudiant: formData.role === 'etudiant' ? formData.numeroEtudiant || `ESP${new Date().getFullYear()}${String(Math.floor(Math.random() * 999) + 1).padStart(3, '0')}` : undefined,
+        tickets: formData.role === 'etudiant' ? { ndekki: 0, repas: 0 } : undefined
+      });
+
+      setUtilisateurs([...mockUsers]);
+      toast({
+        title: "Utilisateur créé",
+        description: `${newUser.prenom} ${newUser.nom} a été ajouté avec succès.`,
+      });
+    }
+
+    resetForm();
+    setIsDialogOpen(false);
   };
 
   const handleEnvoyerEmail = (email: string, nom: string) => {
@@ -109,38 +225,65 @@ const GestionUtilisateurs = () => {
           </div>
         </div>
         
-        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <Dialog open={isDialogOpen} onOpenChange={(open) => {
+          setIsDialogOpen(open);
+          if (!open) resetForm();
+        }}>
           <DialogTrigger asChild>
-            <Button>
+            <Button onClick={handleAjouterUtilisateur}>
               <UserPlus className="h-4 w-4 mr-2" />
               Nouvel utilisateur
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Créer un nouvel utilisateur</DialogTitle>
+              <DialogTitle>
+                {isModifying ? 'Modifier l\'utilisateur' : 'Créer un nouvel utilisateur'}
+              </DialogTitle>
               <DialogDescription>
-                Ajoutez un nouvel utilisateur à la plateforme ESP'eat.
+                {isModifying 
+                  ? 'Modifiez les informations de l\'utilisateur.'
+                  : 'Ajoutez un nouvel utilisateur à la plateforme ESP\'eat.'
+                }
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="prenom">Prénom</Label>
-                  <Input id="prenom" placeholder="Prénom" />
+                  <Label htmlFor="prenom">Prénom *</Label>
+                  <Input 
+                    id="prenom" 
+                    placeholder="Prénom" 
+                    value={formData.prenom}
+                    onChange={(e) => setFormData(prev => ({ ...prev, prenom: e.target.value }))}
+                  />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="nom">Nom</Label>
-                  <Input id="nom" placeholder="Nom" />
+                  <Label htmlFor="nom">Nom *</Label>
+                  <Input 
+                    id="nom" 
+                    placeholder="Nom" 
+                    value={formData.nom}
+                    onChange={(e) => setFormData(prev => ({ ...prev, nom: e.target.value }))}
+                  />
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" type="email" placeholder="email@example.com" />
+                <Label htmlFor="email">Email *</Label>
+                <Input 
+                  id="email" 
+                  type="email" 
+                  placeholder="email@esp.sn" 
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="role">Rôle</Label>
-                <Select>
+                <Label htmlFor="role">Rôle *</Label>
+                <Select 
+                  value={formData.role} 
+                  onValueChange={(value) => setFormData(prev => ({ ...prev, role: value as User['role'] }))}
+                >
                   <SelectTrigger>
                     <SelectValue placeholder="Sélectionner un rôle" />
                   </SelectTrigger>
@@ -148,19 +291,28 @@ const GestionUtilisateurs = () => {
                     <SelectItem value="etudiant">Étudiant</SelectItem>
                     <SelectItem value="agent">Agent</SelectItem>
                     <SelectItem value="restaurateur">Restaurateur</SelectItem>
+                    <SelectItem value="gerant">Gérant</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+              {formData.role === 'etudiant' && (
+                <div className="space-y-2">
+                  <Label htmlFor="numeroEtudiant">Numéro étudiant</Label>
+                  <Input 
+                    id="numeroEtudiant" 
+                    placeholder="ESP2025001 (optionnel, généré automatiquement)" 
+                    value={formData.numeroEtudiant}
+                    onChange={(e) => setFormData(prev => ({ ...prev, numeroEtudiant: e.target.value }))}
+                  />
+                </div>
+              )}
             </div>
             <DialogFooter>
-              <Button type="submit" onClick={() => {
-                toast({
-                  title: "Utilisateur créé",
-                  description: "Le nouvel utilisateur a été ajouté avec succès.",
-                });
-                setIsDialogOpen(false);
-              }}>
-                Créer l'utilisateur
+              <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
+                Annuler
+              </Button>
+              <Button onClick={handleSauvegarderUtilisateur}>
+                {isModifying ? 'Modifier' : 'Créer'} l'utilisateur
               </Button>
             </DialogFooter>
           </DialogContent>
